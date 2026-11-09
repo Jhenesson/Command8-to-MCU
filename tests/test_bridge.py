@@ -534,3 +534,40 @@ def test_the_leftover_of_an_erased_label_does_not_become_a_name():
     bridge.handle_host_message(_mcu_lcd(1, "olume       "))
 
     assert [m for m in hardware_out.sent if m[:5] == c8.encode_lcd_text(linha_nomes, 0, "x")[:5]] == []
+
+
+def test_console_view_buttons_become_cc_when_cc_out_is_set():
+    hardware_out = FakeMidiOut()
+    host_out = FakeMidiOut()
+    cc_out = FakeMidiOut()
+    bridge = Bridge(hardware_out=hardware_out, host_out=host_out, state=ChannelState(), cc_out=cc_out)
+
+    bridge.handle_hardware_message([0x90, 0x00, 0x40 + c8.REGION_MODE])  # Pan apertado
+    bridge.handle_hardware_message([0x90, 0x00, 0x00 + c8.REGION_MODE])  # Pan solto
+    bridge.handle_hardware_message([0x90, 0x04, 0x40 + c8.REGION_MODE])  # B apertado
+
+    assert cc_out.sent == [[0xB0, 102, 127], [0xB0, 102, 0], [0xB0, 106, 127]]
+    assert host_out.sent == []  # nada vai pro MCU
+    assert hardware_out.sent[0] == c8.encode_global_button_led("pan", True)
+
+
+def test_console_view_buttons_keep_mcu_behaviour_without_cc_out():
+    hardware_out = FakeMidiOut()
+    host_out = FakeMidiOut()
+    bridge = Bridge(hardware_out=hardware_out, host_out=host_out, state=ChannelState())
+
+    bridge.handle_hardware_message([0x90, 0x00, 0x40 + c8.REGION_MODE])
+
+    assert host_out.sent != []
+
+
+def test_non_console_buttons_still_reach_mcu_with_cc_out():
+    hardware_out = FakeMidiOut()
+    host_out = FakeMidiOut()
+    cc_out = FakeMidiOut()
+    bridge = Bridge(hardware_out=hardware_out, host_out=host_out, state=ChannelState(), cc_out=cc_out)
+
+    bridge.handle_hardware_message([0x90, 0x00, 0x40 + c8.REGION_MAIN])  # Enter
+
+    assert cc_out.sent == []
+    assert host_out.sent != []

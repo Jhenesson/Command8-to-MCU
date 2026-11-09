@@ -30,6 +30,25 @@ CONSOLE_TO_MCU = {
 }
 
 
+# Modo "Console View como CC": cada botão do Console View vira um Control Change
+# solto (127 ao apertar, 0 ao soltar, canal 1) numa porta MIDI própria, pra
+# mapear à mão no DAW (Learn). Faixa 102-119 do MIDI é indefinida, então não
+# colide com nenhum CC padrão.
+CONSOLE_CC = {
+    "pan": 102,
+    "send": 103,
+    "insert_console": 104,
+    "a": 105,
+    "b": 106,
+    "c": 107,
+    "d": 108,
+    "e": 109,
+    "default": 110,
+    "mon": 111,
+    "display_mode": 112,
+}
+
+
 # Botões globais da Command|8 que têm equivalente natural no MCU. Quem não está
 # aqui não é encaminhado — são os que não têm correspondente nenhum (A-E,
 # Default, Mon/0, as janelas do Pro Tools, Master Bypass) e que ficam pra um
@@ -112,9 +131,13 @@ DEBUG_LCD = os.environ.get("COMMAND8_DEBUG_LCD") == "1"
 
 
 class Bridge:
-    def __init__(self, hardware_out, host_out, state: ChannelState | None = None, now=time.monotonic):
+    def __init__(self, hardware_out, host_out, state: ChannelState | None = None,
+                 now=time.monotonic, cc_out=None):
         self.hardware_out = hardware_out
         self.host_out = host_out
+        # Quando presente, os botões do Console View saem como CC por aqui e
+        # deixam de ir pro MCU.
+        self.cc_out = cc_out
         self.state = state or ChannelState()
         self._now = now
         self._timecode = TimecodeDisplay()
@@ -146,6 +169,12 @@ class Bridge:
         global_button = c8.decode_global_button(message)
         if global_button is not None:
             name, pressed = global_button
+
+            if self.cc_out is not None and name in CONSOLE_CC:
+                self.cc_out.send_message([0xB0, CONSOLE_CC[name], 127 if pressed else 0])
+                # o host não vê este botão, então o LED acompanha o aperto
+                self.hardware_out.send_message(c8.encode_global_button_led(name, pressed))
+                return
 
             if name == _BANK_BUTTON:
                 self._bank_held = pressed

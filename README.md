@@ -28,6 +28,25 @@ PYTHONPATH=src ./venv/bin/python -u -m command8_bridge.cli
 
 Defina `COMMAND8_DEBUG=1` para logar cada mensagem MIDI.
 
+## Console View como MIDI CC
+
+Com `--console-cc` (ou `COMMAND8_CONSOLE_CC=1`), os botões do Console View deixam de
+virar comandos MCU e saem como Control Change na porta virtual **Command8 CC**
+(canal 1, 127 ao apertar, 0 ao soltar), para você mapear à mão (Learn) no DAW:
+
+| Botão | CC | Botão | CC |
+|---|---|---|---|
+| Pan | 102 | D | 108 |
+| Send | 103 | E | 109 |
+| Insert | 104 | Default | 110 |
+| A | 105 | Mon/0 | 111 |
+| B | 106 | Display Mode | 112 |
+| C | 107 | | |
+
+```bash
+PYTHONPATH=src ./venv/bin/python -u -m command8_bridge.cli --console-cc
+```
+
 ## Testes
 
 ```bash

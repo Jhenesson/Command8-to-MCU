@@ -13,6 +13,10 @@ SERIAL = [0x43, 0x38, 0x62, 0x72, 0x64, 0x67, 0x65]  # "C8brdge" arbitrário, 7 
 # depurar mensagem por mensagem.
 DEBUG = os.environ.get("COMMAND8_DEBUG") == "1"
 
+# Com --console-cc (ou COMMAND8_CONSOLE_CC=1), os botões do Console View saem como
+# CC na porta virtual "Command8 CC" em vez de virarem comandos MCU.
+CONSOLE_CC_MODE = "--console-cc" in sys.argv or os.environ.get("COMMAND8_CONSOLE_CC") == "1"
+
 # Teto de insistência do Device Query. Ver comentário no laço principal.
 MAX_DEVICE_QUERIES = 10
 
@@ -43,7 +47,15 @@ def main():
         print(f"Erro ao criar porta virtual de entrada: {e}", file=sys.stderr)
         sys.exit(1)
 
-    bridge = Bridge(hardware_out=hardware_out, host_out=host_out)
+    cc_out = None
+    if CONSOLE_CC_MODE:
+        try:
+            cc_out = midi_io.open_virtual_output("Command8 CC")
+        except Exception as e:
+            print(f"Erro ao criar porta virtual de CC: {e}", file=sys.stderr)
+            sys.exit(1)
+
+    bridge = Bridge(hardware_out=hardware_out, host_out=host_out, cc_out=cc_out)
     handshake_done = False
     host_respondeu = False
 
